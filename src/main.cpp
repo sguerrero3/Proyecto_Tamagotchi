@@ -80,51 +80,50 @@ void vStateUpdateTask(void *pvParameters) {
     // Obtener la instancia de Pet desde los parámetros
     Pet* pet = static_cast<Pet*>(pvParameters);
 
-    // Bucle de actualización de estado continuo
-    while (true) {
-        // Pedir recursos compartidos
-        xSemaphoreTake(xMutex, portMAX_DELAY);
-        // Actualizar el estado de la mascota sin intervención del usuario
-        pet->updateState();
+    // Pedir recursos compartidos
+    xSemaphoreTake(xMutex, portMAX_DELAY);
+    // Actualizar el estado de la mascota sin intervención del usuario
+    pet->updateState();
+              
+    // Liberar recursos compartidos
+    xSemaphoreGive(xMutex);
 
-        // Imprimir el estado de la mascota en la consola usando Serial.print
-        Serial.print("Estado de la mascota - Hambre: ");
-        Serial.print(pet->hambre);
-        Serial.print(", Felicidad: ");
-        Serial.print(pet->felicidad);
-        Serial.print(", Energia: ");
-        Serial.print(pet->energia);
-        Serial.print(", Sueño: ");
-        Serial.print(pet->suenio);
-        Serial.print(", Higiene: ");
-        Serial.print(pet->higiene);
-        Serial.print(", Salud: ");
-        Serial.print(pet->salud);
-        Serial.print(", Edad: ");
-        Serial.print(pet->edad);
-        Serial.print(", Peso: ");
-        Serial.print(pet->peso);
-        Serial.println();
-                  
-        // Liberar recursos compartidos
-        xSemaphoreGive(xMutex);
-
-        // Dormir durante un tiempo antes de la próxima actualización
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Esperar 1000 milisegundos (1 segundo)
-    }
+    // Dormir durante un tiempo antes de la próxima actualización
+    vTaskDelay(pdMS_TO_TICKS(1000)); // Esperar 1000 milisegundos (1 segundo)
 }
 
+// Inicializar una instancia de la clase Pet
+Pet mascota = Pet();
 
-int main() {
-    // Inicializar una instancia de la clase Pet
-    Pet mascota;
+void setup() {
+    // Inicializar el puerto serial
+    Serial.begin(9600);
 
     // Crear tarea y pasar la instancia de Pet como parámetro
     xTaskCreate(vStateUpdateTask, "StateUpdateTask", 1000, &mascota, 1, NULL);
 
-    // Iniciar el programador de tareas de FreeRTOS
+    // Iniciar el programador de tareas
     vTaskStartScheduler();
+}
 
-    // Nunca deberías llegar aquí si el programador de tareas se inicia correctamente
-    return 0;
+void loop() {
+    // Imprimir el estado de la mascota en la consola usando Serial.print
+    Serial.print("Estado de la mascota - Hambre: ");
+    Serial.print(mascota.hambre);
+    Serial.print(", Felicidad: ");
+    Serial.print(mascota.felicidad);
+    Serial.print(", Energia: ");
+    Serial.print(mascota.energia);
+    Serial.print(", Sueño: ");
+    Serial.print(mascota.suenio);
+    Serial.print(", Higiene: ");
+    Serial.print(mascota.higiene);
+    Serial.print(", Salud: ");
+    Serial.print(mascota.salud);
+    Serial.print(", Edad: ");
+    Serial.print(mascota.edad);
+    Serial.print(", Peso: ");
+    Serial.print(mascota.peso);
+    Serial.println();
+    delay(1000);
 }
