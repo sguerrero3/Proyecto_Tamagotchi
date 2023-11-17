@@ -1,12 +1,21 @@
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <iostream>
 
-// Prototipos de las funciones
-void vStateUpdateTask(void *pvParameters);
+#if CONFIG_FREERTOS_UNICORE
+static const BaseType_t app_cpu = 0;
+#else
+static const BaseType_t app_cpu = 1;
+#endif
 
-// Declaración de variables globales y clases
+
+// LED rates
+static const int rate_1 = 500;  // ms
+
+// Pins
+static const int led_pin = LED_BUILTIN;
+
+
 class Pet {
   public:
     // Variables de estado de la mascota por defecto
@@ -72,58 +81,61 @@ class Pet {
 
 };
 
-// RQ2: Función para actualizar el estado de la mascota
-void vStateUpdateTask(void *pvParameters) {
-    // Declaración del semáforo Mutex para la sincronización de recursos compartidos
-    SemaphoreHandle_t xMutex = xSemaphoreCreateMutex();
 
-    // Obtener la instancia de Pet desde los parámetros
-    Pet* pet = static_cast<Pet*>(pvParameters);
-
-    // Pedir recursos compartidos
-    xSemaphoreTake(xMutex, portMAX_DELAY);
-    // Actualizar el estado de la mascota sin intervención del usuario
-    pet->updateState();
-              
-    // Liberar recursos compartidos
-    xSemaphoreGive(xMutex);
-
-    // Dormir durante un tiempo antes de la próxima actualización
-    vTaskDelay(pdMS_TO_TICKS(1000)); // Esperar 1000 milisegundos (1 segundo)
+// Our task: blink an LED at one rate
+void vStateUpdateTask(void *parameter) {
+  while(1) {
+    Serial.println("hola");
+  }
 }
 
-// Inicializar una instancia de la clase Pet
-Pet mascota = Pet();
+
+
+
+// Our task: blink an LED at one rate
+void toggleLED_1(void *parameter) {
+  while(1) {
+    digitalWrite(led_pin, HIGH);
+    vTaskDelay(rate_1 / portTICK_PERIOD_MS);
+    digitalWrite(led_pin, LOW);
+    vTaskDelay(rate_1 / portTICK_PERIOD_MS);
+  }
+}
+
+
 
 void setup() {
-    // Inicializar el puerto serial
-    Serial.begin(9600);
 
-    // Crear tarea y pasar la instancia de Pet como parámetro
-    xTaskCreate(vStateUpdateTask, "StateUpdateTask", 1000, &mascota, 1, NULL);
+  Serial.begin(9600);
 
-    // Iniciar el programador de tareas
-    vTaskStartScheduler();
+  // Configure pin
+  pinMode(led_pin, OUTPUT);
+
+  // Task to run forever
+  xTaskCreatePinnedToCore(  // Use xTaskCreate() in vanilla FreeRTOS
+              toggleLED_1,  // Function to be called
+              "Toggle 1",   // Name of task
+              1024,         // Stack size (bytes in ESP32, words in FreeRTOS)
+              NULL,         // Parameter to pass to function
+              1,            // Task priority (0 to configMAX_PRIORITIES - 1)
+              NULL,         // Task handle
+              app_cpu);     // Run on one core for demo purposes (ESP32 only)
+
+  xTaskCreatePinnedToCore(
+              vStateUpdateTask, 
+              "StateUpdateTask", 
+              1024, 
+              NULL, 
+              1, 
+              NULL,
+              app_cpu);
+
+
+  // If this was vanilla FreeRTOS, you'd want to call vTaskStartScheduler() in
+  // main after setting up your tasks.
 }
 
+
 void loop() {
-    // Imprimir el estado de la mascota en la consola usando Serial.print
-    Serial.print("Estado de la mascota - Hambre: ");
-    Serial.print(mascota.hambre);
-    Serial.print(", Felicidad: ");
-    Serial.print(mascota.felicidad);
-    Serial.print(", Energia: ");
-    Serial.print(mascota.energia);
-    Serial.print(", Sueño: ");
-    Serial.print(mascota.suenio);
-    Serial.print(", Higiene: ");
-    Serial.print(mascota.higiene);
-    Serial.print(", Salud: ");
-    Serial.print(mascota.salud);
-    Serial.print(", Edad: ");
-    Serial.print(mascota.edad);
-    Serial.print(", Peso: ");
-    Serial.print(mascota.peso);
-    Serial.println();
-    delay(1000);
+  // put your main code here, to run repeatedly:
 }
