@@ -5,24 +5,8 @@
 #include <freertos/queue.h>
 
 // Definiciones de variables globales
-Pet mascota;
-
-// Prototipos de funciones para tareas
-void vUITask(void *pvParameters);
-void vStateUpdateTask(void *pvParameters);
-void vFeedingTask(void *pvParameters);
-void vGameTask(void *pvParameters);
-void vSleepTask(void *pvParameters);
-void vPowerControlTask(void *pvParameters);
-
-// Definición de colas y semáforos
-QueueHandle_t xUserInputQueue;
-QueueHandle_t xGameResultQueue;
-SemaphoreHandle_t xFoodAvailableSemaphore;
-SemaphoreHandle_t xMultipleGamesSemaphore;
-SemaphoreHandle_t xUserInputSemaphore;
-SemaphoreHandle_t xDataMutex;
-
+#ifndef Pet_h
+#define Pet_h
 // Creación de la estructura de datos principal
 class Pet {
   public:
@@ -87,11 +71,31 @@ class Pet {
     peso += value;
   }
 };
+#endif
+
+// Prototipos de funciones para tareas
+void vUITask(void *pvParameters);
+void vStateUpdateTask(void *pvParameters);
+void vFeedingTask(void *pvParameters);
+void vGameTask(void *pvParameters);
+void vSleepTask(void *pvParameters);
+void vPowerControlTask(void *pvParameters);
+
+// Definición de colas y semáforos
+QueueHandle_t xUserInputQueue;
+QueueHandle_t xGameResultQueue;
+SemaphoreHandle_t xFoodAvailableSemaphore;
+SemaphoreHandle_t xMultipleGamesSemaphore;
+SemaphoreHandle_t xUserInputSemaphore;
+SemaphoreHandle_t xDataMutex;
+Pet mascota;
 
 void setup() {
   // Inicialización de periféricos y recursos aquí
+  Serial.begin(9600);
+
   // Instanciar la clase Pet
-  mascota = Pet();
+  Pet mascota = Pet();
 
   // Crear colas y semáforos
   xUserInputQueue = xQueueCreate(5, sizeof(uint8_t));
@@ -110,14 +114,18 @@ void setup() {
   xTaskCreate(vPowerControlTask, "Power Control Task", 2048, NULL, 2, NULL);
 
   // Iniciar el planificador de FreeRTOS
-  vTaskStartScheduler();
+  //vTaskStartScheduler();
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 }
 
-void vStateUpdateTask(void* pvParameters) {
+void vUITask(void * pvParameters)
+{
+}
+
+void vStateUpdateTask(void * pvParameters) {
   while (1) {
   // Actualizar estado general de la mascota
 
@@ -144,4 +152,16 @@ void vFeedingTask(void* pvParameters) {
     // Liberar semáforo de comida disponible
     xSemaphoreGive(xFoodAvailableSemaphore);
   }
+}
+
+void vGameTask(void * pvParameters)
+{
+}
+
+void vSleepTask(void * pvParameters)
+{
+}
+
+void vPowerControlTask(void * pvParameters)
+{
 }
