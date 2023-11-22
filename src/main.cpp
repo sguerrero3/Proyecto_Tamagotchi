@@ -106,12 +106,12 @@ void setup() {
   xDataMutex = xSemaphoreCreateMutex();
 
   // Crear tareas
-  xTaskCreate(vUITask, "UI Task", 2048, NULL, 2, NULL);
-  xTaskCreate(vStateUpdateTask, "State Update Task", 2048, NULL, 2, NULL);
-  xTaskCreate(vFeedingTask, "Feeding Task", 2048, NULL, 2, NULL);
-  xTaskCreate(vGameTask, "Game Task", 2048, NULL, 2, NULL);
-  xTaskCreate(vSleepTask, "Sleep Task", 2048, NULL, 2, NULL);
-  xTaskCreate(vPowerControlTask, "Power Control Task", 2048, NULL, 2, NULL);
+  //xTaskCreate(vUITask, "UI Task", 1024, NULL, 1, NULL);
+  xTaskCreate(vStateUpdateTask, "State Update Task", 1024, NULL, 1, NULL);
+  xTaskCreate(vFeedingTask, "Feeding Task", 1024, NULL, 1, NULL);
+  //xTaskCreate(vGameTask, "Game Task", 1024, NULL, 1, NULL);
+  //xTaskCreate(vSleepTask, "Sleep Task", 1024, NULL, 1, NULL);
+  //xTaskCreate(vPowerControlTask, "Power Control Task", 1024, NULL, 1, NULL);
 
   // Iniciar el planificador de FreeRTOS
   //vTaskStartScheduler();
@@ -137,7 +137,7 @@ void vStateUpdateTask(void * pvParameters) {
     Serial.print("Hambre: "); Serial.println(mascota.hambre);
     Serial.print("Felicidad: "); Serial.println(mascota.felicidad);
   xSemaphoreGive(xDataMutex);
-  vTaskDelay(pdMS_TO_TICKS(1000)); // Esperar 1 segundo
+  vTaskDelay(pdMS_TO_TICKS(30000)); // Esperar 30 segundos
   }
 }
 
@@ -150,7 +150,8 @@ void vFeedingTask(void* pvParameters) {
     mascota.updateHambre(-10);
     xSemaphoreGive(xDataMutex);
     // Liberar semáforo de comida disponible
-    xSemaphoreGive(xFoodAvailableSemaphore);
+    //xSemaphoreGive(xFoodAvailableSemaphore);
+    vTaskDelay(pdMS_TO_TICKS(60000));
   }
 }
 
