@@ -1,21 +1,29 @@
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <freertos/queue.h>
 
-#if CONFIG_FREERTOS_UNICORE
-static const BaseType_t app_cpu = 0;
-#else
-static const BaseType_t app_cpu = 1;
-#endif
+// Definiciones de variables globales
+Pet mascota;
 
+// Prototipos de funciones para tareas
+void vUITask(void *pvParameters);
+void vStateUpdateTask(void *pvParameters);
+void vFeedingTask(void *pvParameters);
+void vGameTask(void *pvParameters);
+void vSleepTask(void *pvParameters);
+void vPowerControlTask(void *pvParameters);
 
-// LED rates
-static const int rate_1 = 500;  // ms
+// Definición de colas y semáforos
+QueueHandle_t xUserInputQueue;
+QueueHandle_t xGameResultQueue;
+SemaphoreHandle_t xFoodAvailableSemaphore;
+SemaphoreHandle_t xMultipleGamesSemaphore;
+SemaphoreHandle_t xUserInputSemaphore;
+SemaphoreHandle_t xDataMutex;
 
-// Pins
-static const int led_pin = LED_BUILTIN;
-
-
+// Creación de la estructura de datos principal
 class Pet {
   public:
     // Variables de estado de la mascota por defecto
@@ -78,64 +86,62 @@ class Pet {
   void updatePeso(int value) {
     peso += value;
   }
-
 };
 
-
-// Our task: blink an LED at one rate
-void vStateUpdateTask(void *parameter) {
-  while(1) {
-    Serial.println("hola");
-  }
-}
-
-
-
-
-// Our task: blink an LED at one rate
-void toggleLED_1(void *parameter) {
-  while(1) {
-    digitalWrite(led_pin, HIGH);
-    vTaskDelay(rate_1 / portTICK_PERIOD_MS);
-    digitalWrite(led_pin, LOW);
-    vTaskDelay(rate_1 / portTICK_PERIOD_MS);
-  }
-}
-
-
-
 void setup() {
+  // Inicialización de periféricos y recursos aquí
+  // Instanciar la clase Pet
+  mascota = Pet();
 
-  Serial.begin(9600);
+  // Crear colas y semáforos
+  xUserInputQueue = xQueueCreate(5, sizeof(uint8_t));
+  xGameResultQueue = xQueueCreate(5, sizeof(uint8_t));
+  xFoodAvailableSemaphore = xSemaphoreCreateBinary();
+  xMultipleGamesSemaphore = xSemaphoreCreateMutex();
+  xUserInputSemaphore = xSemaphoreCreateBinary();
+  xDataMutex = xSemaphoreCreateMutex();
 
-  // Configure pin
-  pinMode(led_pin, OUTPUT);
+  // Crear tareas
+  xTaskCreate(vUITask, "UI Task", 2048, NULL, 2, NULL);
+  xTaskCreate(vStateUpdateTask, "State Update Task", 2048, NULL, 2, NULL);
+  xTaskCreate(vFeedingTask, "Feeding Task", 2048, NULL, 2, NULL);
+  xTaskCreate(vGameTask, "Game Task", 2048, NULL, 2, NULL);
+  xTaskCreate(vSleepTask, "Sleep Task", 2048, NULL, 2, NULL);
+  xTaskCreate(vPowerControlTask, "Power Control Task", 2048, NULL, 2, NULL);
 
-  // Task to run forever
-  xTaskCreatePinnedToCore(  // Use xTaskCreate() in vanilla FreeRTOS
-              toggleLED_1,  // Function to be called
-              "Toggle 1",   // Name of task
-              1024,         // Stack size (bytes in ESP32, words in FreeRTOS)
-              NULL,         // Parameter to pass to function
-              1,            // Task priority (0 to configMAX_PRIORITIES - 1)
-              NULL,         // Task handle
-              app_cpu);     // Run on one core for demo purposes (ESP32 only)
-
-  xTaskCreatePinnedToCore(
-              vStateUpdateTask, 
-              "StateUpdateTask", 
-              1024, 
-              NULL, 
-              1, 
-              NULL,
-              app_cpu);
-
-
-  // If this was vanilla FreeRTOS, you'd want to call vTaskStartScheduler() in
-  // main after setting up your tasks.
+  // Iniciar el planificador de FreeRTOS
+  vTaskStartScheduler();
 }
-
 
 void loop() {
   // put your main code here, to run repeatedly:
+}
+
+void vStateUpdateTask(void* pvParameters) {
+  while (1) {
+  // Actualizar estado general de la mascota
+
+  // Actualizar datos compartidos
+  xSemaphoreTake(xDataMutex, portMAX_DELAY);
+  mascota.updateState();
+    // Mostrar información del estado en el puerto serie (serial)
+    Serial.println("Estado de la mascota:");
+    Serial.print("Hambre: "); Serial.println(mascota.hambre);
+    Serial.print("Felicidad: "); Serial.println(mascota.felicidad);
+  xSemaphoreGive(xDataMutex);
+  vTaskDelay(pdMS_TO_TICKS(1000)); // Esperar 1 segundo
+  }
+}
+
+void vFeedingTask(void* pvParameters) {
+  while (1) {
+    // Esperar a que el usuario ingrese un valor
+    xSemaphoreTake(xUserInputSemaphore, portMAX_DELAY);
+    // Actualizar datos compartidos
+    xSemaphoreTake(xDataMutex, portMAX_DELAY);
+    mascota.updateHambre(-10);
+    xSemaphoreGive(xDataMutex);
+    // Liberar semáforo de comida disponible
+    xSemaphoreGive(xFoodAvailableSemaphore);
+  }
 }
