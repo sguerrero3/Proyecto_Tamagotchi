@@ -16,77 +16,13 @@ static const int rate_1 = 500;  // ms
 static const int led_pin = LED_BUILTIN;
 
 
-class Pet {
-  public:
-    // Variables de estado de la mascota por defecto
-    int hambre = 20;
-    int felicidad = 50;
-    int energia = 100;
-    int suenio = 0;
-    int higiene = 100;
-    int salud = 100;
-    int edad = 0;
-    int peso = 30;
-
-  // Constructor de la clase
-  Pet() {}
-
-  // Destructor de la clase
-  ~Pet() {}
-
-  // Función para actualizar el estado de la mascota por defecto
-  void updateState() {
-    hambre += 1;
-    felicidad -= 1;
-    energia -= 1;
-    suenio += 1;
-    higiene -= 1;
-    salud -= 1;
-    edad += 1;
-    peso -= 1;
-  }
-
-  // Funciones para actualizar el estado de la mascota con parámetros
-  void updateHambre(int value) {
-    hambre += value;
-  }
-
-  void updateFelicidad(int value) {
-    felicidad += value;
-  }
-
-  void updateEnergia(int value) {
-    energia += value;
-  }
-
-  void updateSuenio(int value) {
-    suenio += value;
-  }
-
-  void updateHigiene(int value) {
-    higiene += value;
-  }
-
-  void updateSalud(int value) {
-    salud += value;
-  }
-
-  void updateEdad(int value) {
-    edad += value;
-  }
-
-  void updatePeso(int value) {
-    peso += value;
-  }
-
-};
-
-
 // Our task: blink an LED at one rate
 void vStateUpdateTask(void *parameter) {
-  while(1) {
-    Serial.println("hola");
-  }
+  
+  Serial.println("hola");
+
+  vTaskDelete(NULL);
+  
 }
 
 
@@ -121,14 +57,13 @@ void setup() {
               NULL,         // Task handle
               app_cpu);     // Run on one core for demo purposes (ESP32 only)
 
-  xTaskCreatePinnedToCore(
+  xTaskCreate(
               vStateUpdateTask, 
               "StateUpdateTask", 
               1024, 
               NULL, 
               1, 
-              NULL,
-              app_cpu);
+              NULL);
 
 
   // If this was vanilla FreeRTOS, you'd want to call vTaskStartScheduler() in
