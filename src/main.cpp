@@ -88,6 +88,7 @@ SemaphoreHandle_t xFoodAvailableSemaphore;
 SemaphoreHandle_t xMultipleGamesSemaphore;
 SemaphoreHandle_t xUserInputSemaphore;
 SemaphoreHandle_t xDataMutex;
+xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
 Pet mascota;
 
 void setup() {
@@ -141,17 +142,32 @@ void vStateUpdateTask(void * pvParameters) {
   }
 }
 
-void vFeedingTask(void* pvParameters) {
+void FeedingTask(void* pvParameters) {
   while (1) {
-    // Esperar a que el usuario ingrese un valor
+    // Esperar a que esté disponible la comida o haya una petición del usuario
     xSemaphoreTake(xUserInputSemaphore, portMAX_DELAY);
-    // Actualizar datos compartidos
-    xSemaphoreTake(xDataMutex, portMAX_DELAY);
-    mascota.updateHambre(-10);
-    xSemaphoreGive(xDataMutex);
-    // Liberar semáforo de comida disponible
-    //xSemaphoreGive(xFoodAvailableSemaphore);
-    vTaskDelay(pdMS_TO_TICKS(60000));
+
+    // Verificar si hay una petición del usuario en la cola
+    int receivedData = 0;
+    if (xQueueReceive(menuQueue, &receivedData, 0) == pdTRUE) {
+      // Hay una petición del usuario (OPCIÓN DEL MENÚ 2 SELECCIONADA)
+      if (receivedData == 2) {
+        // Alimentar a la mascota
+        Serial.println("Alimentando a la mascota...");
+
+        // Al alimentar, se le quitan diez puntos de hambre al tamagotchi
+        mascota.updateHambre(-10);
+
+        // Mostrar estado después de alimentar
+        xSemaphoreTake(xDataMutex, portMAX_DELAY);
+        Serial.println("Estado después de alimentar:");
+        Serial.print("Hambre: "); Serial.println(mascota.hambre);
+        xSemaphoreGive(xDataMutex);
+      }
+    }
+
+    // Esperar un tiempo antes de la próxima verificación
+    vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
 
