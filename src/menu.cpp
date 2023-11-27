@@ -98,6 +98,8 @@ SemaphoreHandle_t xUserInputSemaphore;
 SemaphoreHandle_t xDataMutex;
 Pet mascota;
 
+bool requestFeeding = false;
+
 String opcionesMenu[] = {"< Menu >","<Casa>","<Comer>", "< Jugar >", "<Limpiar>", "<Guardar>"};
 xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
@@ -219,6 +221,7 @@ void vMenuTask(void *parameter)
           display.display();
           estado = 3;
           receivedData = 0;
+          requestFeeding = true;
         }
       }
     }
@@ -304,23 +307,23 @@ void vFeedingTask(void* pvParameters) {
     // Esperar a que esté disponible la comida o haya una petición del usuario
     xSemaphoreTake(xUserInputSemaphore, portMAX_DELAY);
 
-    // Verificar si hay una petición del usuario en la cola
+    // Verificar si hay una petición del usuario en la cola o a través de la bandera
     int receivedData = 0;
-    if (xQueueReceive(menuQueue, &receivedData, 0) == pdTRUE) {
-      // Hay una petición del usuario (OPCIÓN DEL MENÚ 2 SELECCIONADA)
-      if (receivedData == 2) {
-        // Alimentar a la mascota
-        Serial.println("Alimentando a la mascota...");
+    if (xQueueReceive(menuQueue, &receivedData, 0) == pdTRUE || requestFeeding) {
+      // Resetear la bandera
+      requestFeeding = false;
 
-        // Al alimentar, se le quitan diez puntos de hambre al tamagotchi
-        mascota.updateHambre(-10);
+      // Alimentar a la mascota
+      Serial.println("Alimentando a la mascota...");
 
-        // Mostrar estado después de alimentar
-        xSemaphoreTake(xDataMutex, portMAX_DELAY);
-        Serial.println("Estado después de alimentar:");
-        Serial.print("Hambre: "); Serial.println(mascota.hambre);
-        xSemaphoreGive(xDataMutex);
-      }
+      // Lógica de alimentación, supongamos que actualizas el estado de la mascota
+      mascota.updateHambre(-10);  // Reducir el hambre en 10 unidades, ajusta según tus necesidades
+
+      // Mostrar estado después de alimentar
+      xSemaphoreTake(xDataMutex, portMAX_DELAY);
+      Serial.println("Estado después de alimentar:");
+      Serial.print("Hambre: "); Serial.println(mascota.hambre);
+      xSemaphoreGive(xDataMutex);
     }
 
     // Esperar un tiempo antes de la próxima verificación
