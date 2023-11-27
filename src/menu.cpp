@@ -90,18 +90,19 @@ void vSleepTask(void *pvParameters);
 void vPowerControlTask(void *pvParameters);
 
 // Definición de colas y semáforos
-QueueHandle_t xUserInputQueue;
 QueueHandle_t xGameResultQueue;
-SemaphoreHandle_t xFoodAvailableSemaphore;
 SemaphoreHandle_t xMultipleGamesSemaphore;
-SemaphoreHandle_t xUserInputSemaphore;
 SemaphoreHandle_t xDataMutex;
+
+xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
+xQueueHandle comidaQueue = xQueueCreate(1, sizeof(int));
+
+
 Pet mascota;
 
 bool requestFeeding = false;
 
 String opcionesMenu[] = {"< Menu >","<Casa>","<Comer>", "< Jugar >", "<Limpiar>", "<Guardar>"};
-xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
 int estado = 0;
 
@@ -140,6 +141,10 @@ void left_Interrupt()
     {
       int dataToSend = 2;
       xQueueSend(menuQueue, &dataToSend, portMAX_DELAY);
+    }
+    else if(estado == 3){
+      int dataToSend = 1;
+      xQueueSend(comidaQueue, &dataToSend, portMAX_DELAY);
     }
   }
   l_last_interrupt_time = l_interrupt_time;
@@ -205,7 +210,6 @@ void vMenuTask(void *parameter)
       }
       else if (receivedData == 4)
       {
-        Serial.print(indexMenu);
         if(indexMenu == 1){
           display.clearDisplay();
           display.setCursor(0, 0);
@@ -242,7 +246,7 @@ void setup()
   display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
-  display.print("Este NO es el menu");
+  display.print("Welcome Back");
   display.display();
 
   Serial.begin(9600);
@@ -262,11 +266,8 @@ void setup()
   Pet mascota = Pet();
 
   // Crear colas y semáforos
-  xUserInputQueue = xQueueCreate(5, sizeof(uint8_t));
   xGameResultQueue = xQueueCreate(5, sizeof(uint8_t));
-  xFoodAvailableSemaphore = xSemaphoreCreateBinary();
   xMultipleGamesSemaphore = xSemaphoreCreateMutex();
-  xUserInputSemaphore = xSemaphoreCreateBinary();
   xDataMutex = xSemaphoreCreateMutex();
 
   // Crear tareas
@@ -283,7 +284,6 @@ void setup()
 
 void loop()
 {
-  delay(500);
 }
 
 void vStateUpdateTask(void * pvParameters) {
@@ -298,7 +298,7 @@ void vStateUpdateTask(void * pvParameters) {
     Serial.print("Hambre: "); Serial.println(mascota.hambre);
     Serial.print("Felicidad: "); Serial.println(mascota.felicidad);
   xSemaphoreGive(xDataMutex);
-  vTaskDelay(pdMS_TO_TICKS(30000)); // Esperar 30 segundos
+  vTaskDelay(pdMS_TO_TICKS(10000)); // Esperar 30 segundos
   }
 }
 
@@ -306,20 +306,14 @@ void vFeedingTask(void* pvParameters) {
   while (1) {
     // Verificar si hay una petición del usuario en la cola o a través de la bandera
     int receivedData = 0;
-    if (xQueueReceive(menuQueue, &receivedData, 0) == pdTRUE || requestFeeding) {
-      // Resetear la bandera
-      requestFeeding = false;
-
-      // Alimentar a la mascota
+    if (xQueueReceive(comidaQueue, &receivedData, portMAX_DELAY)) {
+      
       Serial.println("Alimentando a la mascota...");
 
-      // Lógica de alimentación, supongamos que actualizas el estado de la mascota
-      mascota.updateHambre(-10);  // Reducir el hambre en 10 unidades, ajusta según tus necesidades
-
-      // Mostrar estado después de alimentar
       xSemaphoreTake(xDataMutex, portMAX_DELAY);
-      Serial.println("Estado después de alimentar:");
-      Serial.print("Hambre: "); Serial.println(mascota.hambre);
+      if(mascota.hambre >= 0){
+        mascota.updateHambre(-1);
+      }
       xSemaphoreGive(xDataMutex);
     }
 
