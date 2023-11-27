@@ -6,6 +6,8 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
 
 #define BUZZER_PIN 33
 #define centerButton 18
@@ -85,6 +87,7 @@ class Pet {
 void vUITask(void *pvParameters);
 void vStateUpdateTask(void *pvParameters);
 void vFeedingTask(void *pvParameters);
+void vWashTask(void *pvParameters);
 void vGameTask(void *pvParameters);
 void vSleepTask(void *pvParameters);
 void vPowerControlTask(void *pvParameters);
@@ -96,15 +99,19 @@ SemaphoreHandle_t xDataMutex;
 
 xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
 xQueueHandle comidaQueue = xQueueCreate(1, sizeof(int));
-
+xQueueHandle lavadoQueue = xQueueCreate(1, sizeof(int));
 
 Pet mascota;
 
+// Definición de booleanos globales
 bool requestFeeding = false;
+int contadorMovimiento(float, float, float, float, float, float, int);
 
 String opcionesMenu[] = {"< Menu >","<Casa>","<Comer>", "< Jugar >", "<Limpiar>", "<Guardar>"};
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
+Adafruit_MPU6050 mpu;
 int estado = 0;
+float actual;
 
 // Detectar boton del centro
 void center_Interrupt()
@@ -227,6 +234,14 @@ void vMenuTask(void *parameter)
           receivedData = 0;
           requestFeeding = true;
         }
+        else if (indexMenu == 4) {
+          display.clearDisplay();
+          display.setCursor(0, 0);
+          display.print("Task Limpiar");
+          display.display();
+          estado = 5;
+          receivedData = 0;
+        }
       }
     }
   }
@@ -274,6 +289,7 @@ void setup()
   //xTaskCreate(vUITask, "UI Task", 1024, NULL, 1, NULL);
   xTaskCreate(vStateUpdateTask, "State Update Task", 1024, NULL, 1, NULL);
   xTaskCreate(vFeedingTask, "Feeding Task", 1024, NULL, 1, NULL);
+  xTaskCreate(vWashTask, "Wash Task", 1024, NULL, 1, NULL);
   //xTaskCreate(vGameTask, "Game Task", 1024, NULL, 1, NULL);
   //xTaskCreate(vSleepTask, "Sleep Task", 1024, NULL, 1, NULL);
   //xTaskCreate(vPowerControlTask, "Power Control Task", 1024, NULL, 1, NULL);
@@ -284,6 +300,7 @@ void setup()
 
 void loop()
 {
+
 }
 
 void vStateUpdateTask(void * pvParameters) {
@@ -320,4 +337,39 @@ void vFeedingTask(void* pvParameters) {
     // Esperar un tiempo antes de la próxima verificación
     vTaskDelay(pdMS_TO_TICKS(500));
   }
+}
+
+void vWashTask(void* pvParameters) {
+  while (1) {
+    // Verificar si hay una petición del usuario en la cola o a través de la bandera
+    int receivedData = 0;
+    if (xQueueReceive(lavadoQueue, &receivedData, portMAX_DELAY)) {
+      
+      Serial.println("Limpiando a la mascota...");
+      xSemaphoreTake(xDataMutex, portMAX_DELAY);
+      sensors_event_t g, a, temp;
+      mpu.getEvent(&g, &a, &temp);
+      int contador2 = contadorMovimiento(a.acceleration.x, a.acceleration.y, a.acceleration.z, g.gyro.x, g.gyro.y, g.gyro.z, 0);
+      if(contador2 == 10){
+        if(mascota.higiene >= 0){
+          mascota.updateHigiene(10);
+        }
+      }
+      xSemaphoreGive(xDataMutex);
+    }
+
+    // Esperar un tiempo antes de la próxima verificación
+    vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
+
+int contadorMovimiento(float accX, float accY, float accZ, float gyroX, float gyroY, float gyroZ, int contador) {
+  // Agitar el tamagotchi para incrementar la limpieza
+  while (contador < 10) {
+    if (sqrt(accX * accX + accY * accY + accZ * accZ) > 3.5 && 
+        sqrt(gyroX * gyroX + gyroY * gyroY + gyroZ * gyroZ) > 3.5) {
+      contador += 1;
+    }
+  }
+  return contador;
 }
