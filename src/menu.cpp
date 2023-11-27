@@ -96,10 +96,9 @@ SemaphoreHandle_t xFoodAvailableSemaphore;
 SemaphoreHandle_t xMultipleGamesSemaphore;
 SemaphoreHandle_t xUserInputSemaphore;
 SemaphoreHandle_t xDataMutex;
-xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
 Pet mascota;
 
-String opcionesMenu[] = {"< Menu >", "<Casa>","< Jugar >", "<Limpiar>", "<Guardar>"};
+String opcionesMenu[] = {"< Menu >","<Casa>","<Comer>", "< Jugar >", "<Limpiar>", "<Guardar>"};
 xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
 int estado = 0;
@@ -184,21 +183,21 @@ void vMenuTask(void *parameter)
       }
       else if (receivedData == 2)
       {
-        if (indexMenu == 0){indexMenu = 3;}
+        if (indexMenu == 0){indexMenu = 5;}
         else{indexMenu -= 1;}
         display.clearDisplay();
         display.setCursor(0, 0);
-        display.print(opcionesMenu[indexMenu % 4]);
+        display.print(opcionesMenu[indexMenu]);
         display.display();
         receivedData = 0;
       }
       else if (receivedData == 3)
       {
-        if (indexMenu == 3){indexMenu = 0;}
+        if (indexMenu == 5){indexMenu = 0;}
         else{indexMenu += 1;}
         display.clearDisplay();
         display.setCursor(0, 0);
-        display.print(opcionesMenu[indexMenu % 4]);
+        display.print(opcionesMenu[indexMenu]);
         display.display();
         receivedData = 0;
       }
@@ -216,17 +215,9 @@ void vMenuTask(void *parameter)
         else if(indexMenu == 2){
           display.clearDisplay();
           display.setCursor(0, 0);
-          display.print("Task Jugar");
+          display.print("Task Comer");
           display.display();
           estado = 3;
-          receivedData = 0;
-        }
-        else if(indexMenu == 3){
-          display.clearDisplay();
-          display.setCursor(0, 0);
-          display.print("Task Limpiar");
-          display.display();
-          estado = 4;
           receivedData = 0;
         }
       }
@@ -308,7 +299,7 @@ void vStateUpdateTask(void * pvParameters) {
   }
 }
 
-void FeedingTask(void* pvParameters) {
+void vFeedingTask(void* pvParameters) {
   while (1) {
     // Esperar a que esté disponible la comida o haya una petición del usuario
     xSemaphoreTake(xUserInputSemaphore, portMAX_DELAY);
