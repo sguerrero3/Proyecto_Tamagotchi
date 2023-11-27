@@ -304,9 +304,6 @@ void vStateUpdateTask(void * pvParameters) {
 
 void vFeedingTask(void* pvParameters) {
   while (1) {
-    // Esperar a que esté disponible la comida o haya una petición del usuario
-    xSemaphoreTake(xUserInputSemaphore, portMAX_DELAY);
-
     // Verificar si hay una petición del usuario en la cola o a través de la bandera
     int receivedData = 0;
     if (xQueueReceive(menuQueue, &receivedData, 0) == pdTRUE || requestFeeding) {
