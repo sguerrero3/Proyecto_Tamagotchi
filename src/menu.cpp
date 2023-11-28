@@ -174,6 +174,26 @@ void right_Interrupt()
   r_last_interrupt_time = r_interrupt_time;
 }
 
+
+//Deteccion movimineto
+void vMovimientoTAsk(void *parameter){
+  
+  while(1){
+
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+
+    if(abs(a.acceleration.x) >= 15 || abs(a.acceleration.y) >= 15 || abs(a.acceleration.z) >= 15){
+      
+      if (estado == 5){
+        int dataToSend = 1;
+        xQueueSend(lavadoQueue, &dataToSend, portMAX_DELAY);
+      }
+    }
+    delay(200);
+  }
+}
+
 // Task para el menu
 void vMenuTask(void *parameter)
 {
@@ -276,6 +296,7 @@ void setup()
 
   // Tarea para menu
   xTaskCreate(vMenuTask, "MenuTask", 2048, NULL, 1, NULL);
+  xTaskCreate(vMovimientoTAsk, "MovimientoTask", 2048, NULL, 1, NULL);
 
   // Instanciar la clase Pet
   Pet mascota = Pet();
@@ -296,6 +317,8 @@ void setup()
 
   // Iniciar el planificador de FreeRTOS
   //vTaskStartScheduler();
+
+  mpu.begin();
 }
 
 void loop()
@@ -347,19 +370,13 @@ void vWashTask(void* pvParameters) {
       
       Serial.println("Limpiando a la mascota...");
       xSemaphoreTake(xDataMutex, portMAX_DELAY);
-      sensors_event_t g, a, temp;
-      mpu.getEvent(&g, &a, &temp);
-      int contador2 = contadorMovimiento(a.acceleration.x, a.acceleration.y, a.acceleration.z, g.gyro.x, g.gyro.y, g.gyro.z, 0);
-      if(contador2 == 10){
-        if(mascota.higiene >= 0){
+      if(receivedData == 1){
+        if(mascota.higiene <= 100){
           mascota.updateHigiene(10);
         }
       }
       xSemaphoreGive(xDataMutex);
     }
-
-    // Esperar un tiempo antes de la próxima verificación
-    vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
 
