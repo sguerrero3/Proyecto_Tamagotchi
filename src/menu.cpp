@@ -735,12 +735,13 @@ void vFeedingTask(void* pvParameters) {
           display.fillCircle(18, 38, 2, SSD1306_BLACK);
           display.display();
         }
-      }
+      }   
       else if(receivedData == 3){
         Serial.println("Alimentando a la mascota 2...");
 
         if(xSemaphoreTake(xDataMutex, portMAX_DELAY)){
           mascota.updateHambre(1);
+          mascota.updateSalud(1);
           xSemaphoreGive(xDataMutex);
           display.fillCircle(108, 38, 2, SSD1306_WHITE);
           display.display();
