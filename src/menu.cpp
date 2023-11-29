@@ -177,6 +177,7 @@ SemaphoreHandle_t xDataMutex;
 xQueueHandle menuQueue = xQueueCreate(1, sizeof(int));
 xQueueHandle comidaQueue = xQueueCreate(1, sizeof(int));
 xQueueHandle lavadoQueue = xQueueCreate(1, sizeof(int));
+xQueueHandle juegoQueue = xQueueCreate(1, sizeof(int));
 xQueueHandle casaQueue = xQueueCreate(1, sizeof(int));
 
 Pet mascota;
@@ -186,6 +187,7 @@ bool requestFeeding = false;
 int contadorMovimiento(float, float, float, float, float, float, int);
 
 String opcionesMenu[] = {"< Menu >","<Casa>","<Comer>", "< Jugar >", "<Limpiar>", "<Dormir>"};
+String opcionesJuego[] = {"Piedra","Papel","Tijera"};
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &WIRE);
 Adafruit_MPU6050 mpu;
 int estado = 0;
@@ -210,6 +212,11 @@ void center_Interrupt()
       int dataToSend = 4;
       xQueueSend(menuQueue, &dataToSend, portMAX_DELAY);
     }
+    //else if (estado == 4)
+    //{
+    //  int dataToSend = 3;
+    //  xQueueSend(juegoQueue, &dataToSend, portMAX_DELAY);
+    //}
   }
   c_last_interrupt_time = c_interrupt_time;
 }
@@ -235,6 +242,11 @@ void left_Interrupt()
       int dataToSend = 1;
       xQueueSend(comidaQueue, &dataToSend, portMAX_DELAY);
     }
+    else if (estado == 4)
+    {
+      int dataToSend = 2;
+      xQueueSend(juegoQueue, &dataToSend, portMAX_DELAY);
+    }
   }
   l_last_interrupt_time = l_interrupt_time;
 }
@@ -255,6 +267,11 @@ void right_Interrupt()
     else if(estado ==2){
       int dataToSend = 3;
       xQueueSend(casaQueue, &dataToSend, portMAX_DELAY);
+    }
+    else if (estado == 4)
+    {
+      int dataToSend = 4;
+      xQueueSend(juegoQueue, &dataToSend, portMAX_DELAY);
     }
   }
   r_last_interrupt_time = r_interrupt_time;
@@ -404,6 +421,12 @@ void vMenuTask(void *parameter)
           receivedData = 0;
           requestFeeding = true;
         }
+        else if (indexMenu == 3) {
+          int dataToSend = 1;
+          xQueueSend(juegoQueue, &dataToSend, portMAX_DELAY);
+          estado = 4;
+          receivedData = 0;
+        }
         else if (indexMenu == 4) {
           display.clearDisplay();
           display.setCursor(0, 0);
@@ -535,12 +558,143 @@ void vWashTask(void* pvParameters) {
 
 
 void vGameTask(void* pvParameters) {
+  int receivedData = 0;
+  int indexJuego;
+  int opcionUsuario;
+  int opcionTamagotchi;
+  int resultadoJuego;
+
+  while (1) {
+    // Verificar si hay una petición del usuario en la cola o a través de la bandera
+    if (xQueueReceive(juegoQueue, &receivedData, portMAX_DELAY)) {
+
+        if (receivedData == 1) {
+          indexJuego = 0;
+          display.clearDisplay();
+          display.print(opcionesJuego[indexJuego]);
+          display.display();
+        }
+
+        else if (receivedData == 2) {
+          display.clearDisplay();
+          display.print("Piedra");
+          display.display();
+          opcionUsuario = 0;
+          delay(1000);
+          display.clearDisplay();
+          opcionTamagotchi = std::rand() % 3;
+          if (opcionTamagotchi == 0) {
+            display.print("Piedra - Empate");
+            display.display();
+          }
+          else if (opcionTamagotchi == 1) {
+            display.print("Papel - Perdiste");
+            display.display();
+          }
+          else if (opcionTamagotchi == 2) {
+            display.print("Tijera - Ganaste");
+            display.display();
+          }
+        }
+
+        else if (receivedData == 3) {
+          display.clearDisplay();
+          display.print("Papel");
+          display.display();
+          opcionUsuario = 1;
+          delay(1000);
+          display.clearDisplay();
+          opcionTamagotchi = std::rand() % 3;
+          if (opcionTamagotchi == 0) {
+            display.print("Piedra - Ganaste");
+            display.display();
+          }
+          else if (opcionTamagotchi == 1) {
+            display.print("Papel - Empate");
+            display.display();
+          }
+          else if (opcionTamagotchi == 2) {
+            display.print("Tijera - Perdiste");
+            display.display();
+          }
+        }
+
+        else if (receivedData == 4) {
+          display.clearDisplay();
+          display.print("Tijera");
+          display.display();
+          opcionUsuario = 2;
+          delay(1000);
+          display.clearDisplay();
+          opcionTamagotchi = std::rand() % 3;
+          if (opcionTamagotchi == 0) {
+            display.print("Piedra - Perdiste");
+            display.display();
+          }
+          else if (opcionTamagotchi == 1) {
+            display.print("Papel - Ganaste");
+            display.display();
+          }
+          else if (opcionTamagotchi == 2) {
+            display.print("Tijera - Empate");
+            display.display();
+          }
+        }
+
+      if (xQueueSend(xGameResultQueue, &resultadoJuego, portMAX_DELAY) == pdPASS) {
+
+              // Realizar las acciones correspondientes según el resultado
+              xSemaphoreTake(xDataMutex, portMAX_DELAY);
+              switch (resultadoJuego) {
+                  case 1:
+                      // Usuario gana
+                      if (mascota.felicidad <= 100) {
+                          mascota.updateFelicidad(5);
+                      }
+                      break;
+                  case 2:
+                      // Máquina gana
+                      if (mascota.felicidad >= 0) {
+                          mascota.updateFelicidad(-5);
+                      }
+                      break;
+                  default:
+                      // Empate
+                      break;
+
+              }
+              xSemaphoreGive(xDataMutex);
+          }
+      }
+    // Pausa la tarea durante un breve periodo
+    vTaskDelay(pdMS_TO_TICKS(5000));  // Pausa durante 5000 milisegundos (5 segundos)
+  }
+}
+
+/*
     while (1) {
         // Esperar a que el semáforo indique que se puede jugar
-        if (xSemaphoreTake(xMultipleGamesSemaphore, portMAX_DELAY) == pdTRUE) {
-          // Realizar el juego de piedra-papel-tijera
-          int opcionUsuario = rand() % 3;  // Simula la elección del usuario Se debe cambiar a selección con los botones
-          int opcionTamagotchi = rand() % 3;  // Elección automática
+        int receivedData = 0;
+        int opcionUsuario;
+
+        if (xQueueReceive(juegoQueue, &receivedData, portMAX_DELAY) && receivedData == 1) {
+            display.clearDisplay();
+            display.print("Juego");
+            // Realizar el juego de piedra-papel-tijera
+            if (receivedData == 2) {
+              int opcionUsuario = 0;
+              display.print("Piedra");
+            }
+            else if (receivedData == 3) {
+              int opcionUsuario = 1;
+              display.print("Papel");
+            }
+            else if (receivedData == 4) {
+              int opcionUsuario = 2;
+              display.print("Tijera");
+            }
+            int opcionTamagotchi = (rand() % 3);  // Elección automática
+            display.print(opcionTamagotchi);
 
           // Piedra > Tijera, Tijera > Papel, Papel > Piedra
           uint8_t resultadoJuego;
@@ -591,3 +745,4 @@ void vGameTask(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(5000));  // Pausa durante 5000 milisegundos (5 segundos)
     }
 }
+*/
