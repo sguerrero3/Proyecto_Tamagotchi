@@ -463,7 +463,7 @@ void setup()
   xTaskCreate(vStateUpdateTask, "State Update Task", 1024, NULL, 1, NULL);
   xTaskCreate(vFeedingTask, "Feeding Task", 1024, NULL, 1, NULL);
   xTaskCreate(vWashTask, "Wash Task", 1024, NULL, 1, NULL);
-  //xTaskCreate(vGameTask, "Game Task", 1024, NULL, 1, NULL);
+  xTaskCreate(vGameTask, "Game Task", 1024, NULL, 1, NULL);
   //xTaskCreate(vSleepTask, "Sleep Task", 1024, NULL, 1, NULL);
   //xTaskCreate(vPowerControlTask, "Power Control Task", 1024, NULL, 1, NULL);
 
@@ -531,4 +531,63 @@ void vWashTask(void* pvParameters) {
       xSemaphoreGive(xDataMutex);
     }
   }
+}
+
+
+void vGameTask(void* pvParameters) {
+    while (1) {
+        // Esperar a que el semáforo indique que se puede jugar
+        if (xSemaphoreTake(xMultipleGamesSemaphore, portMAX_DELAY) == pdTRUE) {
+          // Realizar el juego de piedra-papel-tijera
+          int opcionUsuario = rand() % 3;  // Simula la elección del usuario Se debe cambiar a selección con los botones
+          int opcionTamagotchi = rand() % 3;  // Elección automática
+
+          // Piedra > Tijera, Tijera > Papel, Papel > Piedra
+          uint8_t resultadoJuego;
+          if ((opcionUsuario == 0 && opcionTamagotchi == 2) ||
+              (opcionUsuario == 1 && opcionTamagotchi == 0) ||
+              (opcionUsuario == 2 && opcionTamagotchi == 1)) {
+              // Usuario gana
+              resultadoJuego = 1;
+          } else if (opcionUsuario == opcionTamagotchi) {
+              // Empate
+              resultadoJuego = 0;
+          } else {
+              // Máquina gana
+              resultadoJuego = 2;
+          }
+
+          // Guardar el resultado en la cola
+          int32_t resultado;
+          resultado = resultadoJuego;
+          if (xQueueSend(xGameResultQueue, &resultado, portMAX_DELAY) == pdPASS) {
+
+              // Realizar las acciones correspondientes según el resultado
+              xSemaphoreTake(xDataMutex, portMAX_DELAY);
+              switch (resultadoJuego) {
+                  case 1:
+                      // Usuario gana
+                      if (mascota.felicidad <= 100) {
+                          mascota.updateFelicidad(10);
+                      }
+                      break;
+                  case 2:
+                      // Máquina gana
+                      if (mascota.felicidad >= 0) {
+                          mascota.updateFelicidad(-5);
+                      }
+                      break;
+                  default:
+                      // Empate
+                      break;
+
+              }
+              xSemaphoreGive(xDataMutex);
+          }
+          xSemaphoreGive(xMultipleGamesSemaphore);
+        }
+
+        // Pausa la tarea durante un breve periodo
+        vTaskDelay(pdMS_TO_TICKS(5000));  // Pausa durante 5000 milisegundos (5 segundos)
+    }
 }
